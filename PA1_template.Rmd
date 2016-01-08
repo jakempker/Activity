@@ -2,11 +2,7 @@
 title: "Steps Activity Analyses"
 author: "Jordan A. Kempker, MD, MSc "
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Vignette Title}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+output: html_document
 ---
 
 #Introduction
