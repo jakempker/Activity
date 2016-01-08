@@ -87,6 +87,7 @@ ggplot(avg_steps_weekend, aes(interval, steps))+
     facet_grid( day_cat ~ .)
 
 library(knitr)
-knit2html("./PA1_template.rmd", "./PA1_template.html")
+
+knit
 library(rmarkdown)
 render("PA1_template.Rmd", "html_document")

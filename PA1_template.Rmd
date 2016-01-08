@@ -1,10 +1,8 @@
-
----
-title: "Steps Activity Analyses"
-author: "Jordan A. Kempker, MD, MSc "
-date: "`r Sys.Date()`"
-output: html_document
----
+----
+title: "Steps Activity Analyses" 
+author: "Jordan A. Kempker, MD, MSc " 
+date: " r Sys.Date() "
+----
 
 #Introduction
 
