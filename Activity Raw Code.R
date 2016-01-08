@@ -46,10 +46,11 @@ remove(act, n) #clean up the workspace
 #Sum up steps using tapply() or  aggrefate() over date coerced to factor, then take mean of this vector
 #View(with(act, tapply(steps, date, sum, ra.nm = TRUE)))
 steps_per_day <- aggregate(steps ~ date, data = activity, FUN = sum, na.action = na.pass)
-
+View(steps_per_day)
 library(ggplot2)
-ggplot(steps_per_day, aes(steps))+
+g <- ggplot(steps_per_day, aes(steps))+
     geom_histogram()
+print(g)
 
 mean(steps_per_day$steps, na.rm = TRUE)
 median(steps_per_day$steps, na.rm = TRUE)

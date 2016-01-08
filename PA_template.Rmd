@@ -1,0 +1,184 @@
+---
+title: "Steps Activity Analyses"
+author: "Jordan A. Kempker, MD, MSc "
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+#Introduction
+
+This analysis uses data collected from a personal activity monitoring device.  Data includes the number of steps from a single individual collected in 5 minute intervals throughout each 24 hour day from October through November, 2012.
+
+
+
+
+The variables in the dataset are:
+
+
+* __steps:__ integer variable of steps for each 5-minute interval (missing values coded as __NA__)
+* __date:__ character variable of date which measurement was recorded in YYY-MM-DD format
+* __interval:__ integer variable of the time interval measurement was recorded in 2400 military time format
+
+
+
+The dataset is stored in a comma-separated-value (CSV) with a total of 17,568 variables.
+
+
+
+The R packages you will need to manually install (with ```install.packages()```) to run this analysis are:
+
+
+* __stringr:__  for the ```str_pad()``` function
+* __dplyr:__ for some nifty dataset management functions 
+* __ggplot2:__ my favorite plotting system for R
+
+Here is the code you will need to use:
+```{r, eval = FALSE}
+install.packages("stringr")
+
+install.packages("dplyr")
+
+install.packages("ggplot2")
+
+```
+
+```{r, include = FALSE}
+library(stringr)
+library(dplyr)
+library(ggplot2)
+```
+
+---------------
+
+#Downloading and Processing the Data
+
+1. The data can be downloaded from my GitHub site, [here](https://github.com/jkempker/Activity/blob/master/repdata_data_activity.zip).
+
+2. Set your own working directory with ```setwd()```.
+
+3. Unzip the file and read into an R dataframe we will name __act__:
+
+```{r, echo=TRUE}
+unzip("./repdata_data_activity.zip")  
+act <- read.csv("./activity.csv", stringsAsFactors = FALSE)
+```
+
+4. To join the date and time interval variables into one POSIXct formatted time variable
+    + __interval__ is converted from integer to character and left padded with zeroes for fixed length = 4
+    + __interval__ character is pasted to the __date__ then ```strptime()``` used to format
+
+```{r, echo=TRUE}
+act$interval_char <- as.character(act$interval)
+act$interval_char <- str_pad(act$interval_char, 4, side = c("left"), pad ="0")
+act$time_char <- paste(act$date, act$interval_char)
+act$time <- as.POSIXct(strptime(act$time_char, format = "%Y-%m-%d %H%M"))
+```
+
+5. There is a lot of missingness for __steps__, so we will create __steps_imputed__ that takes the imputes the average amount of steps for each time interval, averaged over the entire period wherever __steps__ is missing.
+
+```{r, echo=TRUE}
+act$interval_char <- as.factor(act$interval_char)
+means <- as.numeric(with(act, tapply(steps, INDEX=interval_char, mean, na.rm=TRUE)))
+
+#few data steps to merge these means back to full set, matching by time interval factor level
+interval_char<- levels(act$interval_char)
+n <- data.frame(interval_char,means)
+act <- merge(act, n, by = "interval_char")
+act <- mutate(act, steps_imputed = ifelse(is.na(steps), means, steps))
+```
+
+6. For the below analysis, we will visually compare step activity of weekdays with weekends
+    + Create a factor variable for day of the week using nifty ```weekdays()``` function
+    + Use ```dplyr:mutate()``` again to create the __day_cat__ factor variable
+
+```{r, echo=TRUE}
+act <- mutate(act, day = weekdays(time))
+act <- mutate(act, day_cat = ifelse(day=="Sunday", "weekend",
+                                    ifelse(day == "Saturday", "weekend","weekday")))
+act$day_cat <- as.factor(act$day_cat)
+with(act, table(day, day_cat)) #verify this tricky ifelse mutate worked
+```
+
+7. Finally, clean up into a tidy dataframe, __activity__, and remove other temporary objects
+
+```{r, echo=TRUE}
+activity <- select(act, date, interval, time, steps, steps_imputed, day_cat) 
+remove(act, n)
+```
+
+-------------
+#Analysis
+##Here we will pose a seris of questions and their answers.
+
+
+1. Calculate the total number of steps taken per day.
+    +Use ```aggregate()``` to sum up __steps__ over each __date__ (coerced into factor)
+    +Other options would be to use ```tapply()``` or ```lapply(split())```.
+
+```{r, echo=TRUE}
+steps_per_day <- aggregate(steps ~ date, data = activity, FUN = sum, na.action = na.pass)
+print(steps_per_day)
+```
+
+2. Make a histogram of total number of steps taken each day
+
+```{r, echo=TRUE}
+g <- ggplot(steps_per_day, aes(steps))+
+    geom_histogram()
+print(g)
+```
+
+3. Calculate the mean and median steps per day
+
+```{r, echo=TRUE}
+mean(steps_per_day$steps, na.rm = TRUE)
+median(steps_per_day$steps, na.rm = TRUE)
+```
+
+4. Make a time series plot with 5-minute interval on x-axis and average steps (averaged per interval over entire study period) on y-axis
+
+```{r, echo=TRUE}
+avg_steps_int <- aggregate(steps ~ interval, data = activity, FUN = mean)
+ggplot(avg_steps_int, aes(interval, steps))+
+    geom_path()+
+    labs(x = "5-minute time interval", y = "Average steps taken")
+```
+
+5. Which interval has the most steps on average?
+
+```{r, echo=TRUE}
+with(avg_steps_int, max(steps), na.rm = TRUE)
+filter(avg_steps_int, steps == max(steps))
+```
+
+6. Report the total number of missing values for steps
+    +Here the missings are summed up as __TRUEs__ with the ```is.na()``` function
+
+```{r, echo=TRUE}
+table(is.na(activity$steps))
+```
+
+7. Using the __steps_imputed__ variable created above, remake a histogram of step counts per interval and calculate __mean__ and __median__
+
+```{r, echo=TRUE}
+g <- ggplot(activity, aes(steps_imputed))+
+    geom_histogram()
+print(g)
+mean(activity$steps_imputed)
+median(activity$steps_imputed)
+```
+
+8. Using __day_cat__ variable created above, which creates a factor varialbe grouping days by weeekends and weekdays, create a multipanel time series plot of average steps per time interval (averaged over entire study period grouped by weekday vs. weekend) to compare.
+
+```{r, echo=TRUE}
+avg_steps_weekend <- aggregate(steps ~ day_cat + interval, data = activity, FUN = mean)
+
+g <- ggplot(avg_steps_weekend, aes(interval, steps))+
+    geom_path()+
+    facet_grid( day_cat ~ .)
+print(g)
+```
