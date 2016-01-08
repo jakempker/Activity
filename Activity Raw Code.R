@@ -88,6 +88,5 @@ ggplot(avg_steps_weekend, aes(interval, steps))+
 
 library(knitr)
 
-knit
-library(rmarkdown)
-render("PA1_template.Rmd", "html_document")
+knit2html("PA1_template.Rmd")
+
